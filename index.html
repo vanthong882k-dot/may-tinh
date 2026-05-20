@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: trip planning</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #fdfaf2;
+            color: #4a3f35;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 600px;
+        }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 25px;
+            color: #2c251e;
+        }
+        .rows-list {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .row-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .row-note-input {
+            width: 110px;
+            padding: 10px 0;
+            font-size: 1.05rem;
+            border: none;
+            background-color: transparent;
+            color: #4a3f35;
+            font-weight: 500;
+            outline: none;
+            border-bottom: 1px dashed transparent;
+            transition: border-color 0.2s;
+        }
+        .row-note-input:focus, .row-note-input:hover {
+            border-bottom-color: #bfa88f;
+        }
+        .input-container {
+            flex: 1;
+        }
+        .row-input {
+            width: 100%;
+            padding: 10px 12px;
+            font-size: 1.1rem;
+            border: 1px solid #e6dfd3;
+            border-radius: 6px;
+            background-color: #ffffff;
+            color: #2c251e;
+            outline: none;
+        }
+        .row-input:focus {
+            border-color: #bfa88f;
+            box-shadow: 0 0 0 2px rgba(191, 168, 143, 0.15);
+        }
+        .result-container {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            min-width: 140px;
+            justify-content: flex-end;
+        }
+        .row-result {
+            font-size: 1.1rem;
+            color: #b35d5d;
+            font-weight: 500;
+            text-align: right;
+            word-break: break-all;
+        }
+        .copy-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0; /* Ẩn mặc định, chỉ hiện khi có kết quả */
+            pointer-events: none;
+            transition: opacity 0.2s;
+        }
+        .copy-btn.visible {
+            opacity: 0.4;
+            pointer-events: auto;
+        }
+        .copy-btn:hover {
+            opacity: 1 !important;
+        }
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: #8c8275;
+        }
+        .add-row-btn {
+            background: none;
+            border: none;
+            color: #bfa88f;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 10px 0;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .add-row-btn:hover {
+            color: #947a61;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📁 Demo: trip planning</h2>
+    
+    <div class="rows-list" id="rowsContainer">
+        <!-- Các dòng cứng ban đầu được khởi tạo sẵn -->
+    </div>
+
+    <button class="add-row-btn" onclick="addNewRow()">+ add row</button>
+</div>
+
+<script>
+    // Dữ liệu thô khởi tạo ban đầu giống hệt trong ảnh mẫu
+    let rowData = [
+        { note: "", formula: "3159*5" },
+        { note: "", formula: "" },
+        { note: "NA SA", formula: "R1*72" },
+        { note: "AS", formula: "R1*70" },
+        { note: "EU IM", formula: "R1*68" }
+    ];
+
+    const rowsContainer = document.getElementById('rowsContainer');
+
+    // Hàm dựng khung HTML cố định lúc ban đầu (chỉ chạy khi tải trang hoặc thêm dòng)
+    function buildInitialDOM() {
+        rowsContainer.innerHTML = '';
+        rowData.forEach((row, index) => {
+            createRowDOM(index, row.note, row.formula);
+        });
+        calculateAll();
+    }
+
+    // Hàm tạo cấu trúc HTML cho một dòng đơn lẻ
+    function createRowDOM(index, noteValue, formulaValue) {
+        let rowId = `R${index + 1}`;
+        const rowItem = document.createElement('div');
+        rowItem.className = 'row-item';
+        rowItem.id = `row-item-${index}`;
+        rowItem.innerHTML = `
+            <input type="text" class="row-note-input" id="note-${index}" 
+                   value="${noteValue}" oninput="onNoteChange(${index}, this.value)" placeholder="${rowId}">
+            <div class="input-container">
+                <input type="text" class="row-input" id="formula-${index}" 
+                       value="${formulaValue}" oninput="onFormulaChange(${index}, this.value)" placeholder="Nhập phép tính...">
+            </div>
+            <div class="result-container">
+                <span class="row-result" id="result-${index}"></span>
+                <button class="copy-btn" id="copy-btn-${index}" title="Copy">
+                    <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                </button>
+            </div>
+        `;
+        rowsContainer.appendChild(rowItem);
+    }
+
+    // Thực hiện xử lý toán học liên kết chuỗi
+    function calculateAll() {
+        let computedValues = {};
+
+        for (let i = 0; i < rowData.length; i++) {
+            let rowId = `R${i + 1}`;
+            let rawFormula = rowData[i].formula.trim();
+            let resultSpan = document.getElementById(`result-${i}`);
+            let copyBtn = document.getElementById(`copy-btn-${i}`);
+
+            if (!rawFormula) {
+                computedValues[rowId] = "";
+                if(resultSpan) resultSpan.innerText = "";
+                if(copyBtn) {
+                    copyBtn.classList.remove('visible');
+                    copyBtn.onclick = null;
+                }
+                continue;
+            }
+
+            try {
+                let cleanFormula = rawFormula.replace(/×/g, '*').replace(/÷/g, '/');
+
+                // Quét qua các giá trị dòng trước đó để gán số tương ứng
+                for (let prevId in computedValues) {
+                    if (computedValues[prevId] !== "") {
+                        let regex = new RegExp('\\b' + prevId + '\\b', 'g');
+                        cleanFormula = cleanFormula.replace(regex, computedValues[prevId]);
+                    }
+                }
+
+                let evalResult = eval(cleanFormula);
+                
+                if (typeof evalResult === 'number' && !isNaN(evalResult)) {
+                    computedValues[rowId] = evalResult;
+                    
+                    // Định dạng hiển thị dấu phẩy phân tách
+                    let formatted = evalResult.toLocaleString('en-US', { maximumFractionDigits: 4 });
+                    if(resultSpan) resultSpan.innerText = formatted;
+                    
+                    if(copyBtn) {
+                        copyBtn.classList.add('visible');
+                        // Gán sự kiện click copy cho số trần truồng (không dấu phẩy)
+                        let cleanNum = formatted.replace(/,/g, '');
+                        copyBtn.onclick = () => copyToClipboard(cleanNum);
+                    }
+                } else {
+                    computedValues[rowId] = "";
+                    if(resultSpan) resultSpan.innerText = "";
+                    if(copyBtn) {
+                        copyBtn.classList.remove('visible');
+                        copyBtn.onclick = null;
+                    }
+                }
+            } catch (e) {
+                computedValues[rowId] = "Lỗi";
+                if(resultSpan) resultSpan.innerText = "Lỗi";
+                if(copyBtn) {
+                    copyBtn.classList.remove('visible');
+                    copyBtn.onclick = null;
+                }
+            }
+        }
+    }
+
+    function onNoteChange(index, value) {
+        rowData[index].note = value;
+    }
+
+    function onFormulaChange(index, value) {
+        rowData[index].formula = value;
+        calculateAll(); // Tính toán động thời gian thực ngay lập tức mà không vẽ lại giao diện
+    }
+
+    function addNewRow() {
+        let newIndex = rowData.length;
+        rowData.push({ note: "", formula: "" });
+        createRowDOM(newIndex, "", "");
+        calculateAll();
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            console.log(`Đã copy thành công số: ${text}`);
+        }).catch(err => {
+            console.error('Lỗi copy hệ thống: ', err);
+        });
+    }
+
+    // Chạy dựng khung lần đầu tiên
+    buildInitialDOM();
+</script>
+
+</body>
+</html>
