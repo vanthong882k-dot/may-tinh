@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo: trip planning</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+        body {
+            background-color: #fdfaf2; /* Màu nền kem nhạt giống ảnh mẫu */
+            color: #4a3f35;
+            padding: 20px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+        }
+        h2 {
+            font-size: 1.5rem;
+            font-weight: 500;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        /* Danh sách dòng tính toán */
+        .rows-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        .row-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .row-label {
+            font-size: 0.9rem;
+            color: #8c8275;
+            width: 25px;
+            font-weight: bold;
+        }
+        .input-container {
+            flex: 1;
+            position: relative;
+        }
+        .row-input {
+            width: 100%;
+            padding: 12px 15px;
+            font-size: 1.1rem;
+            border: 1px solid #e6dfd3;
+            border-radius: 8px;
+            background-color: #ffffff;
+            color: #2c251e;
+            outline: none;
+        }
+        .row-input:focus {
+            border-color: #bfa88f;
+            box-shadow: 0 0 0 2px rgba(191, 168, 143, 0.2);
+        }
+        /* Vùng hiển thị kết quả và nút copy */
+        .result-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 120px;
+            justify-content: flex-end;
+        }
+        .row-result {
+            font-size: 1.1rem;
+            color: #b35d5d; /* Màu chữ đỏ hồng giống ảnh */
+            font-weight: 500;
+            text-align: right;
+            word-break: break-all;
+        }
+        .copy-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.5;
+            transition: opacity 0.2s;
+        }
+        .copy-btn:hover {
+            opacity: 1;
+        }
+        .copy-btn svg {
+            width: 16px;
+            height: 16px;
+            fill: #8c8275;
+        }
+        /* Nút thêm dòng */
+        .add-row-btn {
+            background: none;
+            border: none;
+            color: #bfa88f;
+            font-size: 1rem;
+            cursor: pointer;
+            padding: 10px 0;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .add-row-btn:hover {
+            color: #947a61;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>📁 Demo: trip planning</h2>
+    
+    <div class="rows-list" id="rowsContainer">
+        <!-- Các dòng tính toán sẽ được tự động tạo từ JavaScript ở đây -->
+    </div>
+
+    <button class="add-row-btn" onclick="addNewRow()">+ add row</button>
+</div>
+
+<script>
+    // Dữ liệu ban đầu tương tự như trong ảnh của bạn
+    let rowData = [
+        { formula: "3159*5" },
+        { formula: "" },
+        { formula: "R1*72" },
+        { formula: "R1*70" },
+        { formula: "R1*68" }
+    ];
+
+    const rowsContainer = document.getElementById('rowsContainer');
+
+    // Hàm render (hiển thị) lại toàn bộ giao diện bảng tính
+    function renderRows() {
+        rowsContainer.innerHTML = '';
+        
+        // Tính toán trước toàn bộ giá trị của các dòng
+        let computedValues = {};
+        
+        for (let i = 0; i < rowData.length; i++) {
+            let rowId = `R${i + 1}`;
+            let rawFormula = rowData[i].formula.trim();
+            
+            if (!rawFormula) {
+                computedValues[rowId] = "";
+                continue;
+            }
+
+            try {
+                // Xử lý chuỗi công thức: 
+                // 1. Thay thế dấu ẩn tên nhãn (ví dụ 'NA SA = R1*72' -> chỉ lấy 'R1*72')
+                let cleanFormula = rawFormula;
+                if (cleanFormula.includes('=')) {
+                    cleanFormula = cleanFormula.split('=')[1];
+                }
+                
+                // 2. Thay thế ký tự hiển thị nhân chia thông thường sang toán tử JavaScript
+                cleanFormula = cleanFormula.replace(/×/g, '*').replace(/÷/g, '/');
+
+                // 3. Thay thế các nhãn R1, R2, R3... bằng giá trị số thực tế đã tính được trước đó
+                for (let prevId in computedValues) {
+                    if (computedValues[prevId] !== "") {
+                        // Sử dụng RegExp để thay thế chính xác tên biến (tránh trùng lặp R1 với R12)
+                        let regex = new RegExp('\\b' + prevId + '\\b', 'g');
+                        cleanFormula = cleanFormula.replace(regex, computedValues[prevId]);
+                    }
+                }
+
+                // 4. Tính toán chuỗi bằng hàm eval an toàn cơ bản
+                let evalResult = eval(cleanFormula);
+                
+                if (typeof evalResult === 'number' && !isNaN(evalResult)) {
+                    computedValues[rowId] = evalResult;
+                } else {
+                    computedValues[rowId] = "";
+                }
+            } catch (e) {
+                computedValues[rowId] = "Lỗi";
+            }
+        }
+
+        // Tạo cấu trúc HTML cho từng dòng sau khi đã tính toán xong giá trị
+        rowData.forEach((row, index) => {
+            let rowId = `R${index + 1}`;
+            let displayResult = computedValues[rowId];
+            
+            // Định dạng hiển thị dấu phẩy phân tách hàng nghìn (ví dụ: 1,137,240)
+            let formattedResult = "";
+            if (typeof displayResult === 'number') {
+                formattedResult = displayResult.toLocaleString('en-US', { maximumFractionDigits: 4 });
+            } else {
+                formattedResult = displayResult;
+            }
+
+            const rowItem = document.createElement('div');
+            rowItem.className = 'row-item';
+            rowItem.innerHTML = `
+                <div class="row-label">${rowId}</div>
+                <div class="input-container">
+                    <input type="text" class="row-input" value="${row.formula}" 
+                           oninput="updateFormula(${index}, this.value)" placeholder="...">
+                </div>
+                <div class="result-container">
+                    <span class="row-result">${formattedResult}</span>
+                    ${formattedResult && formattedResult !== 'Lỗi' ? `
+                        <button class="copy-btn" onclick="copyToClipboard('${formattedResult}')" title="Copy kết quả">
+                            <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                        </button>
+                    ` : ''}
+                </div>
+            `;
+            rowsContainer.appendChild(rowItem);
+        });
+    }
+
+    // Cập nhật công thức khi người dùng gõ thay đổi số/chữ
+    function updateFormula(index, value) {
+        rowData[index].formula = value;
+        // Chờ người dùng nhập xong và tự động tính toán cập nhật lại toàn bộ bảng
+        renderRows();
+    }
+
+    // Thêm một dòng mới
+    function addNewRow() {
+        rowData.push({ formula: "" });
+        renderRows();
+    }
+
+    // Hàm thực hiện chức năng Copy kết quả vào bộ nhớ tạm
+    function copyToClipboard(text) {
+        // Loại bỏ dấu phẩy phân tách hàng nghìn khi copy nếu muốn lấy số thuần túy (ví dụ: 1137240)
+        const cleanText = text.replace(/,/g, '');
+        navigator.clipboard.writeText(cleanText).then(() => {
+            alert(`Đã copy: ${cleanText}`);
+        }).catch(err => {
+            console.error('Không thể copy: ', err);
+        });
+    }
+
+    // Chạy lần đầu tiên để dựng khung mẫu
+    renderRows();
+</script>
+
+</body>
+</html>
