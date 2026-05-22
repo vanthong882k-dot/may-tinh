@@ -224,7 +224,11 @@
             }
 
             try {
-                let cleanFormula = rawFormula.replace(/×/g, '*').replace(/÷/g, '/');
+                let cleanFormula = rawFormula
+                    .replace(/×/g, '*')
+                    .replace(/÷/g, '/')
+                    .replace(/x/g, '*')
+                    .replace(/X/g, '*');
 
                 for (let prevId in computedValues) {
                     if (computedValues[prevId] !== "") {
