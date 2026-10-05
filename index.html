@@ -225,10 +225,11 @@
 
             try {
                 let cleanFormula = rawFormula
-                    .replace(/×/g, '*')
-                    .replace(/÷/g, '/')
-                    .replace(/x/g, '*')
-                    .replace(/X/g, '*');
+    .replace(/^\s*=\s*/, '')  // bỏ dấu = ở đầu nếu có
+    .replace(/×/g, '*')
+    .replace(/÷/g, '/')
+    .replace(/x/g, '*')
+    .replace(/X/g, '*');
 
                 for (let prevId in computedValues) {
                     if (computedValues[prevId] !== "") {
